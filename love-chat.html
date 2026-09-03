@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Calculator</title>
+<style>
+  :root{
+    --body-grey: #2A2A2E;
+    --body-grey-dark: #1D1D20;
+    --screen-bg: #C7D0C3;
+    --screen-text: #1D2419;
+    --key-face: #38383D;
+    --key-face-light: #47474D;
+    --key-op: #C98A3E;
+    --key-op-text: #1D1D20;
+    --plum: #24141B;
+    --plum-deep: #1A0F14;
+    --blush: #E3AEB4;
+    --blush-deep: #C97C86;
+    --cream: #F3E9DF;
+    --cream-dim: #C9BDB2;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    height:100%;
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--body-grey-dark);
+    overflow:hidden;
+  }
+  #app{
+    position:relative;
+    width:100%;
+    height:100%;
+    max-width:480px;
+    margin:0 auto;
+    background:var(--body-grey-dark);
+  }
+
+  /* ---------- CALCULATOR ---------- */
+  #calc{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    background:linear-gradient(180deg,var(--body-grey) 0%,var(--body-grey-dark) 100%);
+    padding:18px 14px 22px;
+    transition:opacity .5s ease, transform .5s ease;
+  }
+  #calc.hidden{
+    opacity:0;
+    transform:scale(.96);
+    pointer-events:none;
+  }
+  .calc-screen{
+    background:var(--screen-bg);
+    border-radius:10px;
+    margin-bottom:18px;
+    padding:26px 18px 16px;
+    box-shadow:inset 0 2px 6px rgba(0,0,0,.35);
+    flex-shrink:0;
+  }
+  .calc-expr{
+    font-family:'Courier New',monospace;
+    font-size:14px;
+    color:#4A5344;
+    min-height:18px;
+    text-align:right;
+    letter-spacing:.5px;
+    opacity:.75;
+  }
+  .calc-result{
+    font-family:'Courier New',monospace;
+    font-size:44px;
+    color:var(--screen-text);
+    text-align:right;
+    letter-spacing:1px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .calc-grid{
+    flex:1;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    grid-template-rows:repeat(5,1fr);
+    gap:10px;
+  }
+  .key{
+    border:none;
+    border-radius:50%;
+    background:var(--key-face);
+    color:var(--cream);
+    font-size:20px;
+    font-weight:500;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    user-select:none;
+    transition:background .1s ease, transform .05s ease;
+  }
+  .key:active{transform:scale(.94);}
+  .key.light{background:var(--key-face-light);}
+  .key.op{background:var(--key-op);color:var(--key-op-text);font-weight:600;}
+  .key.zero{grid-column:span 2;border-radius:32px;justify-content:flex-start;padding-left:26px;}
+
+  /* ---------- CHAT (revealed) ---------- */
+  #chat{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    background:linear-gradient(180deg,var(--plum) 0%,var(--plum-deep) 100%);
+    opacity:0;
+    transform:scale(1.04);
+    pointer-events:none;
+    transition:opacity .5s ease, transform .5s ease;
+  }
+  #chat.visible{
+    opacity:1;
+    transform:scale(1);
+    pointer-events:auto;
+  }
+  .brand-tag{
+    text-align:center;
+    font-size:9px;
+    letter-spacing:1.5px;
+    color:var(--cream-dim);
+    opacity:.5;
+    padding:6px 0 0;
+    flex-shrink:0;
+  }
+  .chat-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:10px 14px 14px;
+    border-bottom:1px solid rgba(243,233,223,.08);
+    flex-shrink:0;
+    gap:10px;
+  }
+  .chat-header-left{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:0;
+  }
+  .avatar{
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    background:var(--blush-deep);
+    color:var(--plum-deep);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:15px;
+    font-weight:700;
+    flex-shrink:0;
+    overflow:hidden;
+    cursor:pointer;
+    border:2px solid rgba(243,233,223,.15);
+  }
+  .avatar img{width:100%;height:100%;object-fit:cover;}
+  .chat-title{
+    font-family:Georgia,'Times New Roman',serif;
+    font-size:20px;
+    color:var(--cream);
+    letter-spacing:.3px;
+  }
+  .chat-sub{
+    font-size:11px;
+    color:var(--cream-dim);
+    margin-top:2px;
+  }
+  .header-actions{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-shrink:0;
+  }
+  .icon-btn{
+    background:none;
+    border:1px solid rgba(243,233,223,.25);
+    color:var(--cream-dim);
+    border-radius:20px;
+    padding:7px 12px;
+    font-size:12px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .icon-btn:active{background:rgba(243,233,223,.08);}
+
+  .menu-panel{
+    position:absolute;
+    top:58px;
+    right:12px;
+    background:#2E1B24;
+    border:1px solid rgba(243,233,223,.12);
+    border-radius:14px;
+    padding:6px;
+    z-index:20;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);
+    display:none;
+    flex-direction:column;
+    min-width:170px;
+  }
+  .menu-panel.open{display:flex;}
+  .menu-panel button{
+    background:none;
+    border:none;
+    color:var(--cream);
+    text-align:left;
+    padding:10px 12px;
+    font-size:14px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+  .menu-panel button:active{background:rgba(243,233,223,.08);}
+  .menu-panel button.danger{color:#E28A8A;}
+
+  .messages{
+    flex:1;
+    overflow-y:auto;
+    padding:16px 14px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .msg-row{
+    display:flex;
+    flex-direction:column;
+    max-width:76%;
+  }
+  .msg-row.mine{align-self:flex-end;align-items:flex-end;}
+  .msg-row.theirs{align-self:flex-start;align-items:flex-start;}
+  .msg{
+    padding:10px 14px;
+    border-radius:16px;
+    font-size:15px;
+    line-height:1.4;
+    color:var(--plum-deep);
+    word-wrap:break-word;
+    cursor:pointer;
+  }
+  .msg img{
+    display:block;
+    max-width:220px;
+    max-height:280px;
+    border-radius:12px;
+    margin:-2px -6px 4px;
+  }
+  .msg .meta{
+    display:block;
+    font-size:10px;
+    margin-top:4px;
+    opacity:.55;
+  }
+  .msg-row.mine .msg{
+    background:var(--blush);
+    border-bottom-right-radius:4px;
+  }
+  .msg-row.theirs .msg{
+    background:var(--cream);
+    border-bottom-left-radius:4px;
+  }
+  .msg.deleted{
+    font-style:italic;
+    opacity:.6;
+    background:transparent !important;
+    border:1px dashed rgba(243,233,223,.25);
+    color:var(--cream-dim) !important;
+  }
+  .msg-hint{
+    font-size:9px;
+    color:var(--cream-dim);
+    opacity:.4;
+    margin-top:2px;
+  }
+
+  .composer{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:10px 12px calc(12px + env(safe-area-inset-bottom));
+    border-top:1px solid rgba(243,233,223,.08);
+    flex-shrink:0;
+    position:relative;
+  }
+  .composer input[type=text]{
+    flex:1;
+    border:none;
+    outline:none;
+    border-radius:22px;
+    padding:12px 16px;
+    font-size:15px;
+    background:rgba(243,233,223,.1);
+    color:var(--cream);
+    min-width:0;
+  }
+  .composer input::placeholder{color:var(--cream-dim);}
+  .round-btn{
+    background:rgba(243,233,223,.1);
+    border:none;
+    color:var(--cream);
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    font-size:18px;
+    cursor:pointer;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .send-btn{
+    background:var(--blush-deep);
+    color:var(--plum-deep);
+  }
+  .round-btn:active{transform:scale(.94);}
+
+  .emoji-panel{
+    position:absolute;
+    bottom:64px;
+    left:8px;
+    right:8px;
+    background:#2E1B24;
+    border:1px solid rgba(243,233,223,.12);
+    border-radius:16px;
+    padding:10px;
+    display:none;
+    grid-template-columns:repeat(8,1fr);
+    gap:4px;
+    max-height:180px;
+    overflow-y:auto;
+    z-index:15;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);
+  }
+  .emoji-panel.open{display:grid;}
+  .emoji-panel span{
+    font-size:22px;
+    text-align:center;
+    padding:5px 0;
+    cursor:pointer;
+    border-radius:8px;
+  }
+  .emoji-panel span:active{background:rgba(243,233,223,.1);}
+
+  /* name / setup gate */
+  #name-gate{
+    position:absolute;
+    inset:0;
+    background:var(--plum-deep);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    padding:30px;
+    z-index:5;
+  }
+  #name-gate.hidden{display:none;}
+  #name-gate h2{
+    font-family:Georgia,'Times New Roman',serif;
+    color:var(--cream);
+    font-size:22px;
+    margin:0;
+  }
+  .gate-avatar{
+    width:78px;
+    height:78px;
+    border-radius:50%;
+    background:rgba(243,233,223,.08);
+    border:2px dashed rgba(243,233,223,.3);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--cream-dim);
+    font-size:11px;
+    text-align:center;
+    cursor:pointer;
+    overflow:hidden;
+  }
+  .gate-avatar img{width:100%;height:100%;object-fit:cover;}
+  #name-gate input{
+    width:100%;
+    max-width:260px;
+    padding:12px 16px;
+    border-radius:20px;
+    border:1px solid rgba(243,233,223,.25);
+    background:transparent;
+    color:var(--cream);
+    font-size:15px;
+    text-align:center;
+    outline:none;
+  }
+  #name-gate button.primary{
+    background:var(--blush);
+    border:none;
+    color:var(--plum-deep);
+    padding:12px 28px;
+    border-radius:20px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .status-dot{
+    width:7px;height:7px;border-radius:50%;
+    display:inline-block;margin-right:6px;
+    background:#8AA37B;
+  }
+  .hidden-file-input{display:none;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ================= CALCULATOR (visible face) ================= -->
+  <div id="calc">
+    <div class="calc-screen">
+      <div class="calc-expr" id="calc-expr">&nbsp;</div>
+      <div class="calc-result" id="calc-result">0</div>
+    </div>
+    <div class="calc-grid">
+      <button class="key light" data-k="C">C</button>
+      <button class="key light" data-k="±">±</button>
+      <button class="key light" data-k="%">%</button>
+      <button class="key op" data-k="÷">÷</button>
+
+      <button class="key" data-k="7">7</button>
+      <button class="key" data-k="8">8</button>
+      <button class="key" data-k="9">9</button>
+      <button class="key op" data-k="×">×</button>
+
+      <button class="key" data-k="4">4</button>
+      <button class="key" data-k="5">5</button>
+      <button class="key" data-k="6">6</button>
+      <button class="key op" data-k="-">-</button>
+
+      <button class="key" data-k="1">1</button>
+      <button class="key" data-k="2">2</button>
+      <button class="key" data-k="3">3</button>
+      <button class="key op" data-k="+">+</button>
+
+      <button class="key zero" data-k="0">0</button>
+      <button class="key" data-k=".">.</button>
+      <button class="key op" data-k="=">=</button>
+    </div>
+  </div>
+
+  <!-- ================= HIDDEN CHAT ================= -->
+  <div id="chat">
+    <div id="name-gate">
+      <div class="gate-avatar" id="gate-avatar">Add<br>photo</div>
+      <input type="file" accept="image/*" class="hidden-file-input" id="gate-avatar-input">
+      <h2>ඔයාගේ නම</h2>
+      <input id="name-input" type="text" placeholder="Type your name" maxlength="20">
+      <button class="primary" id="name-save">Continue</button>
+    </div>
+
+    <div class="brand-tag">ENGINEERED BY GIHAN SANDANU</div>
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <div class="avatar" id="my-avatar-btn">?</div>
+        <div style="min-width:0;">
+          <div class="chat-title">Us 💌</div>
+          <div class="chat-sub"><span class="status-dot"></span><span id="conn-status">connecting…</span></div>
+        </div>
+      </div>
+      <div class="header-actions" style="position:relative;">
+        <button class="icon-btn" id="menu-btn">⋮</button>
+        <button class="icon-btn" id="lock-btn">🔒 Lock</button>
+        <div class="menu-panel" id="menu-panel">
+          <button id="change-avatar-btn">🖼️ Change my photo</button>
+          <button class="danger" id="clear-chat-btn">🗑️ Clear entire chat</button>
+        </div>
+      </div>
+    </div>
+    <input type="file" accept="image/*" class="hidden-file-input" id="avatar-change-input">
+
+    <div class="messages" id="messages"></div>
+
+    <div class="composer">
+      <button class="round-btn" id="emoji-btn">🙂</button>
+      <button class="round-btn" id="photo-btn">📷</button>
+      <input type="file" accept="image/*" class="hidden-file-input" id="photo-input">
+      <input id="msg-input" type="text" placeholder="Message…" autocomplete="off">
+      <button class="round-btn send-btn" id="send-btn">➤</button>
+      <div class="emoji-panel" id="emoji-panel"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===================================================================
+  FIREBASE SETUP — REQUIRED BEFORE THIS WORKS
+  ===================================================================
+  1. Go to https://console.firebase.google.com → Create a project (free).
+  2. In the project, open "Build → Realtime Database" → Create Database
+     → start in TEST MODE (or set rules below).
+  3. Open Project settings → General → scroll to "Your apps" → click the
+     </> (web) icon → register an app → copy the firebaseConfig object.
+  4. Paste that config into FIREBASE_CONFIG below, replacing the placeholder.
+  5. In Realtime Database → Rules, use something like this (only allows
+     read/write on the loveChat path, no auth required — fine for a
+     private link only you two know, but anyone with the URL + config
+     could read it, so don't publish the file publicly):
+
+     {
+       "rules": {
+         "loveChat": {
+           ".read": true,
+           ".write": true
+         }
+       }
+     }
+
+  Photos are stored as compressed base64 data directly inside Realtime
+  Database messages (no separate Storage bucket needed, so no billing
+  plan is required). Keep photos to a reasonable size — this file
+  auto-compresses them before sending.
+
+  For real privacy, add Firebase Authentication (e.g. anonymous auth or
+  a shared passcode) and tighten these rules — ask me and I can wire
+  that in too.
+=========================================================================-->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBmeb1rUVymWTvePGlbyQyAyhcptOKcTU",
+    authDomain: "my-chat-21012.firebaseapp.com",
+    databaseURL: "https://my-chat-21012-default-rtdb.firebaseio.com",
+    projectId: "my-chat-21012",
+    storageBucket: "my-chat-21012.firebasestorage.app",
+    messagingSenderId: "543259782334",
+    appId: "1:543259782334:web:0bced2efb5ab984920c2ef"
+  };
+
+  let db = null;
+  let firebaseReady = false;
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    firebaseReady = true;
+  } catch (e) {
+    console.warn("Firebase not configured yet:", e);
+  }
+
+  // ---------------- CALCULATOR LOGIC ----------------
+  const exprEl = document.getElementById('calc-expr');
+  const resultEl = document.getElementById('calc-result');
+  const calcEl = document.getElementById('calc');
+  const chatEl = document.getElementById('chat');
+
+  let expr = "";
+
+  function renderCalc(){
+    exprEl.textContent = expr || "\u00A0";
+  }
+
+  function safeEval(str){
+    const cleaned = str.replace(/×/g,'*').replace(/÷/g,'/');
+    if(!/^[0-9+\-*/.\s]+$/.test(cleaned)) return null;
+    try{
+      const val = Function('"use strict";return (' + cleaned + ')')();
+      return (typeof val === 'number' && isFinite(val)) ? val : null;
+    }catch(e){ return null; }
+  }
+
+  document.querySelectorAll('.key').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      handleKey(btn.dataset.k);
+    });
+  });
+
+  function handleKey(k){
+    if(k === 'C'){
+      expr = "";
+      resultEl.textContent = "0";
+      renderCalc();
+      return;
+    }
+    if(k === '±'){
+      if(expr.startsWith('-')) expr = expr.slice(1);
+      else expr = '-' + expr;
+      renderCalc();
+      return;
+    }
+    if(k === '%'){
+      expr += '/100';
+      renderCalc();
+      return;
+    }
+    if(k === '='){
+      const trimmedExpr = expr.trim();
+      const val = safeEval(expr);
+      if(val !== null){
+        resultEl.textContent = String(val);
+        exprEl.textContent = expr + " =";
+        expr = String(val);
+      }
+      if(trimmedExpr === '1010'){
+        setTimeout(unlockChat, 350);
+      }
+      return;
+    }
+    expr += k;
+    renderCalc();
+  }
+
+  function unlockChat(){
+    calcEl.classList.add('hidden');
+    chatEl.classList.add('visible');
+    expr = "";
+    resultEl.textContent = "0";
+    renderCalc();
+    initChatIfNeeded();
+  }
+
+  document.getElementById('lock-btn').addEventListener('click', ()=>{
+    chatEl.classList.remove('visible');
+    calcEl.classList.remove('hidden');
+    document.getElementById('menu-panel').classList.remove('open');
+    document.getElementById('emoji-panel').classList.remove('open');
+  });
+
+  // ---------------- CHAT LOGIC ----------------
+  const nameGate = document.getElementById('name-gate');
+  const nameInput = document.getElementById('name-input');
+  const nameSave = document.getElementById('name-save');
+  const messagesEl = document.getElementById('messages');
+  const msgInput = document.getElementById('msg-input');
+  const sendBtn = document.getElementById('send-btn');
+  const connStatus = document.getElementById('conn-status');
+  const myAvatarBtn = document.getElementById('my-avatar-btn');
+  const gateAvatar = document.getElementById('gate-avatar');
+  const gateAvatarInput = document.getElementById('gate-avatar-input');
+  const avatarChangeInput = document.getElementById('avatar-change-input');
+  const menuBtn = document.getElementById('menu-btn');
+  const menuPanel = document.getElementById('menu-panel');
+  const clearChatBtn = document.getElementById('clear-chat-btn');
+  const changeAvatarBtn = document.getElementById('change-avatar-btn');
+  const emojiBtn = document.getElementById('emoji-btn');
+  const emojiPanel = document.getElementById('emoji-panel');
+  const photoBtn = document.getElementById('photo-btn');
+  const photoInput = document.getElementById('photo-input');
+
+  let myName = localStorage.getItem('loveChatName') || "";
+  let myAvatar = localStorage.getItem('loveChatAvatar') || "";
+  let chatInited = false;
+  let msgsRef = null;
+
+  function initChatIfNeeded(){
+    if(myName){
+      nameGate.classList.add('hidden');
+      applyMyAvatarUI();
+      connectChat();
+    } else {
+      nameGate.classList.remove('hidden');
+    }
+  }
+
+  function applyMyAvatarUI(){
+    if(myAvatar){
+      myAvatarBtn.innerHTML = '<img src="' + myAvatar + '">';
+    } else {
+      myAvatarBtn.textContent = myName ? myName.trim()[0].toUpperCase() : '?';
+    }
+  }
+
+  // ---- image compression helper ----
+  function compressImage(file, maxDim, quality){
+    return new Promise((resolve, reject)=>{
+      const reader = new FileReader();
+      reader.onload = e=>{
+        const img = new Image();
+        img.onload = ()=>{
+          let w = img.width, h = img.height;
+          if(w > h && w > maxDim){ h = Math.round(h * (maxDim / w)); w = maxDim; }
+          else if(h > maxDim){ w = Math.round(w * (maxDim / h)); h = maxDim; }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ---- name gate avatar pick ----
+  gateAvatar.addEventListener('click', ()=> gateAvatarInput.click());
+  gateAvatarInput.addEventListener('change', async ()=>{
+    const f = gateAvatarInput.files[0];
+    if(!f) return;
+    const data = await compressImage(f, 200, 0.7);
+    gateAvatar.innerHTML = '<img src="' + data + '">';
+    gateAvatar.dataset.pending = data;
+  });
+
+  nameSave.addEventListener('click', saveName);
+  nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter') saveName(); });
+  function saveName(){
+    const v = nameInput.value.trim();
+    if(!v) return;
+    myName = v;
+    localStorage.setItem('loveChatName', v);
+    if(gateAvatar.dataset.pending){
+      myAvatar = gateAvatar.dataset.pending;
+      localStorage.setItem('loveChatAvatar', myAvatar);
+    }
+    nameGate.classList.add('hidden');
+    applyMyAvatarUI();
+    connectChat();
+  }
+
+  // ---- change avatar later ----
+  myAvatarBtn.addEventListener('click', ()=> avatarChangeInput.click());
+  changeAvatarBtn.addEventListener('click', ()=>{
+    menuPanel.classList.remove('open');
+    avatarChangeInput.click();
+  });
+  avatarChangeInput.addEventListener('change', async ()=>{
+    const f = avatarChangeInput.files[0];
+    if(!f) return;
+    const data = await compressImage(f, 200, 0.7);
+    myAvatar = data;
+    localStorage.setItem('loveChatAvatar', data);
+    applyMyAvatarUI();
+  });
+
+  // ---- header menu ----
+  menuBtn.addEventListener('click', ()=> menuPanel.classList.toggle('open'));
+  document.addEventListener('click', e=>{
+    if(!menuPanel.contains(e.target) && e.target !== menuBtn){
+      menuPanel.classList.remove('open');
+    }
+  });
+  clearChatBtn.addEventListener('click', ()=>{
+    menuPanel.classList.remove('open');
+    if(!msgsRef) return;
+    if(confirm('මුළු chat එකම දෙන්නටම delete වෙයි. විශ්වාසද?')){
+      msgsRef.remove();
+      messagesEl.innerHTML = "";
+    }
+  });
+
+  // ---- emoji picker ----
+  const EMOJIS = ["😀","😂","🥰","😍","😘","😊","😉","😢","😭","😡","😴","😎","🤔","😱","🙈","👍","👎","👏","🙏","💪","❤️","🧡","💛","💚","💙","💜","🖤","💔","💕","💞","💓","💗","💖","💘","💝","🔥","✨","🎉","🎂","🌹","💐","🌸","☀️","🌙","⭐","☁️","🌧️","🍕","🍔","🍰","☕","🍫","🍓","😅","😜"];
+  EMOJIS.forEach(em=>{
+    const s = document.createElement('span');
+    s.textContent = em;
+    s.addEventListener('click', ()=>{
+      msgInput.value += em;
+      msgInput.focus();
+    });
+    emojiPanel.appendChild(s);
+  });
+  emojiBtn.addEventListener('click', ()=> emojiPanel.classList.toggle('open'));
+
+  // ---- photo send ----
+  photoBtn.addEventListener('click', ()=> photoInput.click());
+  photoInput.addEventListener('change', async ()=>{
+    const f = photoInput.files[0];
+    if(!f || !msgsRef) return;
+    photoBtn.textContent = '…';
+    try{
+      const data = await compressImage(f, 900, 0.6);
+      msgsRef.push({
+        image: data,
+        sender: myName,
+        avatar: myAvatar || "",
+        ts: Date.now()
+      });
+    } finally {
+      photoBtn.textContent = '📷';
+      photoInput.value = "";
+    }
+  });
+
+  function connectChat(){
+    if(chatInited) return;
+    chatInited = true;
+
+    if(!firebaseReady){
+      connStatus.textContent = "Firebase not set up yet — see comments in the code";
+      return;
+    }
+
+    msgsRef = db.ref('loveChat/messages');
+
+    msgsRef.limitToLast(200).on('child_added', snap=>{
+      renderMessage(snap.key, snap.val());
+    });
+    msgsRef.on('child_removed', snap=>{
+      markDeleted(snap.key);
+    });
+    msgsRef.on('child_changed', snap=>{
+      updateMessage(snap.key, snap.val());
+    });
+
+    db.ref('.info/connected').on('value', snap=>{
+      connStatus.textContent = snap.val() ? "online" : "offline";
+    });
+
+    sendBtn.addEventListener('click', sendMessage);
+    msgInput.addEventListener('keydown', e=>{ if(e.key==='Enter') sendMessage(); });
+
+    function sendMessage(){
+      const text = msgInput.value.trim();
+      if(!text) return;
+      msgsRef.push({
+        text: text,
+        sender: myName,
+        avatar: myAvatar || "",
+        ts: Date.now()
+      });
+      msgInput.value = "";
+      emojiPanel.classList.remove('open');
+    }
+  }
+
+  function renderMessage(key, m){
+    if(!m) return;
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + (m.sender === myName ? 'mine' : 'theirs');
+    row.id = 'row-' + key;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg';
+
+    if(m.deletedFor){
+      bubble.classList.add('deleted');
+      bubble.textContent = 'මකපු message එකක්';
+    } else if(m.image){
+      const img = document.createElement('img');
+      img.src = m.image;
+      bubble.appendChild(img);
+    } else if(m.text){
+      const textSpan = document.createElement('span');
+      textSpan.textContent = m.text;
+      bubble.appendChild(textSpan);
+    }
+
+    const time = new Date(m.ts || Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.textContent = (m.sender === myName ? 'You' : (m.sender||'')) + ' · ' + time;
+    if(!m.deletedFor) bubble.appendChild(meta);
+
+    if(m.sender === myName && !m.deletedFor){
+      bubble.title = 'Tap and hold to delete';
+      let pressTimer;
+      const startPress = ()=>{ pressTimer = setTimeout(()=> tryDelete(key), 550); };
+      const cancelPress = ()=> clearTimeout(pressTimer);
+      bubble.addEventListener('mousedown', startPress);
+      bubble.addEventListener('touchstart', startPress);
+      bubble.addEventListener('mouseup', cancelPress);
+      bubble.addEventListener('mouseleave', cancelPress);
+      bubble.addEventListener('touchend', cancelPress);
+    }
+
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function tryDelete(key){
+    if(confirm('මේ message එක delete කරන්නද?')){
+      msgsRef.child(key).update({ deletedFor: true, text: null, image: null });
+    }
+  }
+
+  function markDeleted(key){
+    const row = document.getElementById('row-' + key);
+    if(row) row.remove();
+  }
+
+  function updateMessage(key, m){
+    const row = document.getElementById('row-' + key);
+    if(!row) return;
+    const bubble = row.querySelector('.msg');
+    if(m.deletedFor){
+      bubble.className = 'msg deleted';
+      bubble.textContent = 'මකපු message එකක්';
+    }
+  }
+</script>
+</body>
+</html>
